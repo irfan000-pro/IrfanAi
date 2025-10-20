@@ -3,8 +3,8 @@ import requests
 from telegram import Update, ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-BOT_TOKEN = "yahan_apna_telegram_token_likho"
-GEMINI_API_KEY = "yahan_apna_gemini_key_likho"
+BOT_TOKEN = "8298012658:AAFtEXokf6SeIzTQdGu65SKxMc-qobUuOR4"
+GEMINI_API_KEY = "AIzaSyCFA__HwMSDMW759nyiyRvVHkv9Pr7EsjM"
 
 logging.basicConfig(level=logging.INFO)
 
