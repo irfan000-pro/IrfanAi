@@ -16,7 +16,7 @@ def get_gemini_response(prompt):
     try:
         res = requests.post(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
-            params={"key": GEMINI_API_KEY},
+            params={"key": AIzaSyCFA__HwMSDMW759nyiyRvVHkv9Pr7EsjM},
             json={"contents": [{"parts": [{"text": prompt}]}]},
         )
         data = res.json()
