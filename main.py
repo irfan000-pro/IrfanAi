@@ -1,56 +1,60 @@
 import os
 import logging
 from telegram import Update
-from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+import google.generativeai as genai
 import requests
 
-# Logging setup
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+# Enable logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("8298012658:AAFtEXokf6SeIzTQdGu65SKxMc-qobUuOR4")
-GEMINI_API_KEY = os.getenv("AIzaSyCFA__HwMSDMW759nyiyRvVHkv9Pr7EsjM")
+# Environment variables
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+POLLINATION_API_KEY = os.getenv("POLLINATION_API_KEY")
 
-# Gemini chat function
-def get_gemini_response(prompt):
-    try:
-        res = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
-            params={"key": AIzaSyCFA__HwMSDMW759nyiyRvVHkv9Pr7EsjM},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-        )
-        data = res.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception as e:
-        return f"⚠️ Error: {e}"
+# Setup Gemini
+genai.configure(api_key=GEMINI_API_KEY)
 
-# Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Hi! I’m *ItfanAi* — your smart digital friend.\nAsk me anything!", parse_mode="Markdown")
+    await update.message.reply_text("🤖 Hello! Send me text to use Gemini, or /image <prompt> to generate AI images!")
 
-# Handle user messages
-async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user = update.message.from_user.first_name
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    reply = get_gemini_response(text)
-    await update.message.reply_text(f"🤖 {reply}")
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(user_input)
+        await update.message.reply_text(response.text)
+    except Exception as e:
+        logger.error(e)
+        await update.message.reply_text("⚠️ Error: " + str(e))
 
-# Pollinations Image Command
-async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = " ".join(context.args)
-    if not query:
-        await update.message.reply_text("🖼️ Usage: /image <your prompt>")
+async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) == 0:
+        await update.message.reply_text("Usage: /image <your prompt>")
         return
-    img_url = f"https://image.pollinations.ai/prompt/{query.replace(' ', '%20')}"
-    await update.message.reply_photo(img_url, caption=f"🎨 Prompt: {query}")
 
-# Main function
+    prompt = " ".join(context.args)
+    try:
+        url = "https://api.pollinations.ai/prompt/" + requests.utils.quote(prompt)
+        response = requests.get(url)
+        if response.status_code == 200:
+            await update.message.reply_photo(url)
+        else:
+            await update.message.reply_text("⚠️ Failed to generate image.")
+    except Exception as e:
+        logger.error(e)
+        await update.message.reply_text("❌ Error generating image: " + str(e))
+
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("image", image))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
+    app.add_handler(CommandHandler("image", generate_image))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    logger.info("Bot is running 🚀")
     app.run_polling()
 
 if __name__ == "__main__":
